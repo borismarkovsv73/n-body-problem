@@ -125,7 +125,7 @@ class NBodySimulator:
             chunks.append((i, end_i))
         
         try:
-            results = self.pool.starmap(calculate_force_chunk_efficient, 
+            results = self.pool.starmap(calculate_force_chunk, 
                                       [(start, end, positions, masses, G) for start, end in chunks])
             
             forces = [np.zeros(3) for _ in range(self.n_bodies)]
@@ -426,7 +426,7 @@ class NBodySimulator:
             return bodies + trails + [info_box]
         
         anim = animation.FuncAnimation(fig, animate, frames=n_frames, 
-                                     interval=100, blit=False, repeat=True)
+                                     interval=100, blit=True, repeat=True)
         
         if save_animation:
             filename = f"{results['simulation_type']}_animation.gif"
@@ -609,7 +609,7 @@ class NBodySimulator:
         return anim
 
 
-def calculate_force_chunk_efficient(start_idx, end_idx, positions, masses, G):
+def calculate_force_chunk(start_idx, end_idx, positions, masses, G):
     n_bodies = len(masses)
     forces = np.zeros((end_idx - start_idx) * 3)
     
@@ -637,7 +637,7 @@ def calculate_force_chunk_efficient(start_idx, end_idx, positions, masses, G):
     return forces
 
 
-def create_many_body_system(n_bodies: int = 100) -> List[Body]:
+def create_system(n_bodies: int = 100) -> List[Body]:
     np.random.seed(42)
     bodies = []
     
@@ -693,7 +693,7 @@ def performance_comparison(bodies: List[Body], iterations: int = 100):
     return results_seq, results_par
 
 
-def cleanup_generated_files():
+def cleanup():
     import os
     import glob
     
@@ -730,7 +730,7 @@ def main():
 
             if choice == '1':
                 n_bodies = int(input("Enter number of bodies (default 100): ") or 100)
-                bodies = create_many_body_system(n_bodies)
+                bodies = create_system(n_bodies)
                 iterations = int(input("Enter number of iterations (default 50): ") or 50)
 
                 print("\nSimulation mode:\n1. Sequential\n2. Parallel")
@@ -752,7 +752,7 @@ def main():
                       "4. Both static and 2D animation\n"
                       "5. Both static and 3D animation\n"
                       "6. All visualizations")
-                viz_choice = input("Choose visualization (1-6, default 1): ").strip() or "1"
+                viz_choice = input("Choose visualization (1-6, def3ault 1): ").strip() or "1"
 
                 if viz_choice in ["1", "4", "5", "6"]:
                     simulator.visualize_results(results)
@@ -767,7 +767,7 @@ def main():
 
             elif choice == '2':
                 n_bodies = int(input("Enter number of bodies for comparison (default 100): ") or 100)
-                bodies = create_many_body_system(n_bodies)
+                bodies = create_system(n_bodies)
 
                 iterations = int(input("Enter number of iterations for comparison (default 50): ") or 50)
                 results_seq, results_par = performance_comparison(bodies, iterations)
@@ -782,7 +782,7 @@ def main():
                 print("Comparison results saved to performance_comparison.json")
 
             elif choice == '3':
-                cleanup_generated_files()
+                cleanup()
 
             elif choice == '4':
                 break
