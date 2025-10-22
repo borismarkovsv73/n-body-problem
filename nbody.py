@@ -1,9 +1,3 @@
-"""
-N-body Problem - Simple Implementation
-A straightforward implementation of the N-body gravitational simulation problem
-with both sequential and parallel versions in a single file.
-"""
-
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
@@ -30,13 +24,6 @@ class Body:
 class NBodySimulator:
     
     def __init__(self, bodies: List[Body], dt: float = 86400):
-        """
-        Initialize simulator
-        
-        Args:
-            bodies: List of Body objects
-            dt: Time step in seconds (default: 1 day)
-        """
         self.bodies = bodies
         self.dt = dt
         self.n_bodies = len(bodies)
@@ -66,17 +53,6 @@ class NBodySimulator:
             body.position += body.velocity * self.dt
     
     def simulate(self, iterations: int, parallel: bool = False, processes: int = None) -> dict:
-        """
-        Run the simulation
-        
-        Args:
-            iterations: Number of simulation steps
-            parallel: Use parallel processing
-            processes: Number of processes (auto-detect if None)
-            
-        Returns:
-            Dictionary containing simulation results
-        """
         print(f"Starting {'parallel' if parallel else 'sequential'} simulation...\n"
               f"Bodies: {self.n_bodies}, Iterations: {iterations}")
         
@@ -113,12 +89,7 @@ class NBodySimulator:
             results['iteration_data'].append(current_state)
             
             if parallel:
-                if self.n_bodies >= 8:
-                    forces = self.calculate_forces_parallel(processes)
-                else:
-                    if iteration == 0:
-                        print(f"Note: Using sequential calculation (parallel overhead not worth it for {self.n_bodies} bodies)")
-                    forces = self.calculate_forces()
+                forces = self.calculate_forces_parallel(processes)
             else:
                 forces = self.calculate_forces()
             
@@ -137,9 +108,6 @@ class NBodySimulator:
         return results
     
     def calculate_forces_parallel(self, processes: int) -> List[np.ndarray]:
-        if self.n_bodies < 8:
-            return self.calculate_forces()
-        
         if self.pool is None:
             self.pool = Pool(processes)
         
@@ -457,17 +425,14 @@ class NBodySimulator:
             
             return bodies + trails + [info_box]
         
-        print("Creating animation... This may take a moment.")
         anim = animation.FuncAnimation(fig, animate, frames=n_frames, 
                                      interval=100, blit=False, repeat=True)
         
         if save_animation:
             filename = f"{results['simulation_type']}_animation.gif"
-            print(f"Saving animation as {filename}...")
             anim.save(filename, writer='pillow', fps=10, dpi=100)
             print(f"Animation saved as {filename}")
         
-        print("Showing animation... Close the window to continue.")
         plt.show()
         return anim
     
@@ -475,8 +440,6 @@ class NBodySimulator:
         if not results['iteration_data']:
             print("No data to animate")
             return
-        
-        from mpl_toolkits.mplot3d import Axes3D
         
         plt.style.use('dark_background')
         fig = plt.figure(figsize=(14, 10))
@@ -512,13 +475,6 @@ class NBodySimulator:
                 trajectories[body_name]['y'].append(pos[1])
                 trajectories[body_name]['z'].append(pos[2])
                 trajectories[body_name]['masses'].append(body_data['mass'])
-        
-        sample_body = list(trajectories.keys())[0]
-        sample_traj = trajectories[sample_body]
-        print(f"Sample trajectory ranges:")
-        print(f"  X: {min(sample_traj['x']):.2e} to {max(sample_traj['x']):.2e}")
-        print(f"  Y: {min(sample_traj['y']):.2e} to {max(sample_traj['y']):.2e}") 
-        print(f"  Z: {min(sample_traj['z']):.2e} to {max(sample_traj['z']):.2e}")
         
         colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', 
                   '#DDA0DD', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E9']
@@ -641,18 +597,14 @@ class NBodySimulator:
             
             return [bodies_scatter] + trails
         
-        print("Creating 3D animation... This may take a moment.")
         anim = animation.FuncAnimation(fig, animate_3d, frames=n_frames, 
                                      interval=100, blit=False, repeat=True)
         
         if save_animation:
             filename = f"{results['simulation_type']}_3d_animation.gif"
-            print(f"Saving 3D animation as {filename}...")
             anim.save(filename, writer='pillow', fps=10, dpi=80)
             print(f"3D Animation saved as {filename}")
         
-        print("Showing 3D animation... Close the window to continue.")
-        print("Tip: You can manually rotate and zoom the 3D view!")
         plt.show()
         return anim
 
@@ -674,7 +626,7 @@ def calculate_force_chunk_efficient(start_idx, end_idx, positions, masses, G):
                 
                 if r_magnitude > 1e-10:
                     force_magnitude = G * masses[i] * masses[j] / (r_magnitude ** 2)
-                    
+
                     force_direction = r_vec / r_magnitude
                     
                     total_force += force_magnitude * force_direction
