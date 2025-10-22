@@ -16,7 +16,7 @@ from typing import List
 
 
 # Constants
-G = 6.6743e-11  # Gravitational constant
+G = 6.6743e-11
 
 
 @dataclass
@@ -40,7 +40,7 @@ class NBodySimulator:
         self.bodies = bodies
         self.dt = dt
         self.n_bodies = len(bodies)
-        self.pool = None  # Persistent pool for efficiency
+        self.pool = None
         
     def calculate_forces(self) -> List[np.ndarray]:
         forces = [np.zeros(3) for _ in range(self.n_bodies)]
@@ -83,7 +83,6 @@ class NBodySimulator:
         if parallel and processes is None:
             processes = min(cpu_count(), self.n_bodies)
         
-        # Store initial state
         results = {
             'simulation_type': 'parallel' if parallel else 'sequential',
             'n_bodies': self.n_bodies,
@@ -114,11 +113,10 @@ class NBodySimulator:
             results['iteration_data'].append(current_state)
             
             if parallel:
-                # Use better threshold like in parallel_nbody.py
                 if self.n_bodies >= 8:
                     forces = self.calculate_forces_parallel(processes)
                 else:
-                    if iteration == 0:  # Only show message once
+                    if iteration == 0:
                         print(f"Note: Using sequential calculation (parallel overhead not worth it for {self.n_bodies} bodies)")
                     forces = self.calculate_forces()
             else:
@@ -142,11 +140,9 @@ class NBodySimulator:
         if self.n_bodies < 8:
             return self.calculate_forces()
         
-        # Create persistent pool if it doesn't exist
         if self.pool is None:
             self.pool = Pool(processes)
         
-        # Prepare data more efficiently (like in parallel_nbody.py)
         positions = np.zeros(self.n_bodies * 3)
         masses = np.zeros(self.n_bodies)
         
@@ -154,7 +150,6 @@ class NBodySimulator:
             positions[i*3:i*3+3] = body.position
             masses[i] = body.mass
         
-        # Distribute work better - divide bodies among processes
         bodies_per_process = max(1, self.n_bodies // processes)
         chunks = []
         for i in range(0, self.n_bodies, bodies_per_process):
@@ -162,11 +157,9 @@ class NBodySimulator:
             chunks.append((i, end_i))
         
         try:
-            # Use the efficient worker function
             results = self.pool.starmap(calculate_force_chunk_efficient, 
                                       [(start, end, positions, masses, G) for start, end in chunks])
             
-            # Combine results efficiently
             forces = [np.zeros(3) for _ in range(self.n_bodies)]
             for chunk_idx, (start_idx, end_idx) in enumerate(chunks):
                 chunk_forces = results[chunk_idx]
@@ -196,7 +189,6 @@ class NBodySimulator:
         
         n_bodies = results['n_bodies']
         
-        # Extract trajectories
         trajectories = {}
         for body_data in results['iteration_data'][0]['bodies']:
             body_name = body_data['name'] or f"Body {body_data['id']}"
@@ -210,12 +202,9 @@ class NBodySimulator:
                 trajectories[body_name]['y'].append(pos[1])
                 trajectories[body_name]['z'].append(pos[2])
         
-        # Create plots
         if n_bodies <= 10:
-            # Detailed visualization for small systems
             self._visualize_detailed(trajectories, results, save_plots)
         else:
-            # Simplified visualization for large systems
             self._visualize_many_bodies(trajectories, results, save_plots)
     
     def _visualize_detailed(self, trajectories, results, save_plots):
@@ -223,16 +212,13 @@ class NBodySimulator:
         
         colors = ['red', 'blue', 'green', 'orange', 'purple', 'brown', 'pink', 'gray', 'cyan', 'magenta']
         
-        # 2D trajectory plots
         for i, (name, traj) in enumerate(trajectories.items()):
             color = colors[i % len(colors)]
             
-            # XY plane
             ax1.plot(traj['x'], traj['y'], color=color, label=name, alpha=0.7, linewidth=1.5)
             ax1.scatter(traj['x'][0], traj['y'][0], color=color, s=50, marker='o')
             ax1.scatter(traj['x'][-1], traj['y'][-1], color=color, s=50, marker='s')
             
-            # XZ plane
             ax2.plot(traj['x'], traj['z'], color=color, label=name, alpha=0.7, linewidth=1.5)
             ax2.scatter(traj['x'][0], traj['z'][0], color=color, s=50, marker='o')
             ax2.scatter(traj['x'][-1], traj['z'][-1], color=color, s=50, marker='s')
@@ -249,7 +235,6 @@ class NBodySimulator:
         ax2.legend(fontsize=8)
         ax2.grid(True, alpha=0.3)
         
-        # Speed over time
         iterations = [data['iteration'] for data in results['iteration_data']]
         for i, (name, _) in enumerate(trajectories.items()):
             speeds = [data['bodies'][i]['speed'] for data in results['iteration_data']]
@@ -262,7 +247,6 @@ class NBodySimulator:
         ax3.legend(fontsize=8)
         ax3.grid(True, alpha=0.3)
         
-        # System info
         info_text = f"Simulation Type: {results['simulation_type']}\n"
         info_text += f"Bodies: {results['n_bodies']}\n"
         info_text += f"Iterations: {results['iterations']}\n"
@@ -288,23 +272,18 @@ class NBodySimulator:
         
         n_bodies = len(trajectories)
         
-        # Use a colormap for many bodies
         colors = plt.cm.tab20(np.linspace(0, 1, min(n_bodies, 20)))
         if n_bodies > 20:
-            # For very large systems, use random colors
             np.random.seed(42)
             colors = np.random.rand(n_bodies, 3)
         
-        # 2D trajectory plots - show all trajectories but without individual markers
         for i, (name, traj) in enumerate(trajectories.items()):
             color = colors[i % len(colors)]
             alpha = 0.6 if n_bodies <= 50 else 0.4
             linewidth = 1.0 if n_bodies <= 50 else 0.5
             
-            # XY plane - no individual legends for many bodies
             ax1.plot(traj['x'], traj['y'], color=color, alpha=alpha, linewidth=linewidth)
             
-            # XZ plane
             ax2.plot(traj['x'], traj['z'], color=color, alpha=alpha, linewidth=linewidth)
         
         ax1.set_xlabel('X Position (m)')
@@ -317,7 +296,6 @@ class NBodySimulator:
         ax2.set_title(f'XZ Trajectories ({n_bodies} bodies)')
         ax2.grid(True, alpha=0.3)
         
-        # Speed statistics over time instead of individual speeds
         iterations = [data['iteration'] for data in results['iteration_data']]
         all_speeds = []
         max_speeds = []
@@ -342,7 +320,6 @@ class NBodySimulator:
         ax3.legend()
         ax3.grid(True, alpha=0.3)
         
-        # Enhanced system info with statistics
         info_text = f"Simulation Type: {results['simulation_type']}\n"
         info_text += f"Bodies: {results['n_bodies']}\n"
         info_text += f"Iterations: {results['iterations']}\n"
@@ -350,7 +327,6 @@ class NBodySimulator:
         if results['simulation_type'] == 'parallel':
             info_text += f"Processes: {results['processes']}\n"
         
-        # Add final statistics
         final_speeds = all_speeds[-1] if all_speeds else []
         if final_speeds:
             info_text += f"\nFinal Speed Stats:\n"
@@ -377,7 +353,6 @@ class NBodySimulator:
             print("No data to animate")
             return
         
-        # Set up dark theme like enhanced_visualizer
         plt.style.use('dark_background')
         fig, ax = plt.subplots(figsize=(12, 10))
         fig.patch.set_facecolor('#0a0a0a')
@@ -386,7 +361,6 @@ class NBodySimulator:
         n_bodies = results['n_bodies']
         n_frames = len(results['iteration_data'])
         
-        # Extract all trajectory data
         trajectories = {}
         for body_data in results['iteration_data'][0]['bodies']:
             body_name = body_data['name'] or f"Body{body_data['id']}"
@@ -402,11 +376,9 @@ class NBodySimulator:
                 trajectories[body_name]['y'].append(pos[1])
                 trajectories[body_name]['masses'].append(body_data['mass'])
         
-        # Color palette like enhanced_visualizer
         colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', 
                   '#DDA0DD', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E9']
         
-        # Get data limits with margin
         all_x = []
         all_y = []
         for traj in trajectories.values():
@@ -417,7 +389,6 @@ class NBodySimulator:
         x_range = max(all_x) - min(all_x) if len(set(all_x)) > 1 else abs(max(all_x)) * 0.1
         y_range = max(all_y) - min(all_y) if len(set(all_y)) > 1 else abs(max(all_y)) * 0.1
         
-        # Avoid zero range
         if x_range == 0:
             x_range = max(abs(min(all_x)), abs(max(all_x))) * 0.2 or 1e10
         if y_range == 0:
@@ -426,15 +397,13 @@ class NBodySimulator:
         ax.set_xlim(min(all_x) - margin * x_range, max(all_x) + margin * x_range)
         ax.set_ylim(min(all_y) - margin * y_range, max(all_y) + margin * y_range)
         
-        # Initialize plot elements
         bodies = []
         trails = []
         body_names = list(trajectories.keys())
         
-        # Calculate body sizes based on relative masses
         max_mass = max(max(traj['masses']) for traj in trajectories.values())
-        min_radius = max(x_range, y_range) * 0.005  # Minimum visible size
-        max_radius = max(x_range, y_range) * 0.02   # Maximum size
+        min_radius = max(x_range, y_range) * 0.005
+        max_radius = max(x_range, y_range) * 0.02
         
         for i, body_name in enumerate(body_names):
             color = colors[i % len(colors)]
@@ -462,46 +431,32 @@ class NBodySimulator:
         ax.grid(True, alpha=0.2, color='white')
         ax.tick_params(colors='white')
         
-        # Add legend for small systems
-        if n_bodies <= 10:
-            legend_elements = [plt.Line2D([0], [0], color=colors[i % len(colors)], 
-                                        lw=3, label=body_names[i]) 
-                             for i in range(len(body_names))]
-            ax.legend(handles=legend_elements, loc='upper right', 
-                     facecolor='black', edgecolor='white', labelcolor='white')
-        
-        # Info box
         info_text = f"Bodies: {n_bodies}\nMode: {results['simulation_type']}\n● Current positions"
         info_box = ax.text(0.02, 0.98, info_text, transform=ax.transAxes, 
                           bbox=dict(boxstyle='round,pad=0.5', facecolor='black', 
                                    alpha=0.8, edgecolor='white'),
                           color='white', fontsize=10, verticalalignment='top')
         
-        # Animation function
         def animate(frame):
             for i, body_name in enumerate(body_names):
                 traj = trajectories[body_name]
                 
-                # Update body position
                 x = traj['x'][frame]
                 y = traj['y'][frame]
                 bodies[i].center = (x, y)
                 
-                # Update trail (show last 50 points or all if fewer)
                 trail_length = min(frame + 1, 50)
                 start_idx = max(0, frame - trail_length + 1)
                 trail_x = traj['x'][start_idx:frame+1]
                 trail_y = traj['y'][start_idx:frame+1]
                 trails[i].set_data(trail_x, trail_y)
             
-            # Update info box with current iteration
             current_iter = results['iteration_data'][frame]['iteration']
             new_info = f"Bodies: {n_bodies}\nMode: {results['simulation_type']}\nIteration: {current_iter}"
             info_box.set_text(new_info)
             
             return bodies + trails + [info_box]
         
-        # Create animation
         print("Creating animation... This may take a moment.")
         anim = animation.FuncAnimation(fig, animate, frames=n_frames, 
                                      interval=100, blit=False, repeat=True)
@@ -513,6 +468,191 @@ class NBodySimulator:
             print(f"Animation saved as {filename}")
         
         print("Showing animation... Close the window to continue.")
+        plt.show()
+        return anim
+    
+    def create_3d_animated_visualization(self, results: dict, save_animation: bool = False):
+        if not results['iteration_data']:
+            print("No data to animate")
+            return
+        
+        from mpl_toolkits.mplot3d import Axes3D
+        
+        plt.style.use('dark_background')
+        fig = plt.figure(figsize=(14, 10))
+        ax = fig.add_subplot(111, projection='3d')
+        fig.patch.set_facecolor('#0a0a0a')
+        ax.xaxis.pane.fill = False
+        ax.yaxis.pane.fill = False
+        ax.zaxis.pane.fill = False
+        ax.xaxis.pane.set_edgecolor('w')
+        ax.yaxis.pane.set_edgecolor('w')
+        ax.zaxis.pane.set_edgecolor('w')
+        ax.xaxis.pane.set_alpha(0.1)
+        ax.yaxis.pane.set_alpha(0.1)
+        ax.zaxis.pane.set_alpha(0.1)
+        
+        n_bodies = results['n_bodies']
+        n_frames = len(results['iteration_data'])
+        
+        print(f"Setting up 3D visualization for {n_bodies} bodies, {n_frames} frames...")
+        
+        trajectories = {}
+        for body_data in results['iteration_data'][0]['bodies']:
+            body_name = body_data['name'] or f"Body{body_data['id']}"
+            trajectories[body_name] = {
+                'x': [], 'y': [], 'z': [], 'masses': []
+            }
+        
+        for iteration_data in results['iteration_data']:
+            for body_data in iteration_data['bodies']:
+                body_name = body_data['name'] or f"Body{body_data['id']}"
+                pos = body_data['position']
+                trajectories[body_name]['x'].append(pos[0])
+                trajectories[body_name]['y'].append(pos[1])
+                trajectories[body_name]['z'].append(pos[2])
+                trajectories[body_name]['masses'].append(body_data['mass'])
+        
+        sample_body = list(trajectories.keys())[0]
+        sample_traj = trajectories[sample_body]
+        print(f"Sample trajectory ranges:")
+        print(f"  X: {min(sample_traj['x']):.2e} to {max(sample_traj['x']):.2e}")
+        print(f"  Y: {min(sample_traj['y']):.2e} to {max(sample_traj['y']):.2e}") 
+        print(f"  Z: {min(sample_traj['z']):.2e} to {max(sample_traj['z']):.2e}")
+        
+        colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', 
+                  '#DDA0DD', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E9']
+        
+        all_x, all_y, all_z = [], [], []
+        for traj in trajectories.values():
+            all_x.extend(traj['x'])
+            all_y.extend(traj['y'])
+            all_z.extend(traj['z'])
+        
+        margin = 0.15
+        
+        if len(set(all_x)) <= 1:
+            x_center = all_x[0] if all_x else 0
+            x_range = abs(x_center) * 0.1 if x_center != 0 else 1e10
+            x_min, x_max = x_center - x_range, x_center + x_range
+        else:
+            x_min, x_max = min(all_x), max(all_x)
+            x_range = x_max - x_min
+            x_min -= margin * x_range
+            x_max += margin * x_range
+            
+        if len(set(all_y)) <= 1:
+            y_center = all_y[0] if all_y else 0
+            y_range = abs(y_center) * 0.1 if y_center != 0 else 1e10
+            y_min, y_max = y_center - y_range, y_center + y_range
+        else:
+            y_min, y_max = min(all_y), max(all_y)
+            y_range = y_max - y_min
+            y_min -= margin * y_range
+            y_max += margin * y_range
+            
+        if len(set(all_z)) <= 1:
+            z_center = all_z[0] if all_z else 0
+            z_range = abs(z_center) * 0.1 if z_center != 0 else 1e10
+            z_min, z_max = z_center - z_range, z_center + z_range
+        else:
+            z_min, z_max = min(all_z), max(all_z)
+            z_range = z_max - z_min
+            z_min -= margin * z_range
+            z_max += margin * z_range
+                    
+        ax.set_xlim(x_min, x_max)
+        ax.set_ylim(y_min, y_max)
+        ax.set_zlim(z_min, z_max)
+        
+        try:
+            ax.set_box_aspect([1,1,1])
+        except:
+            pass
+        
+        trails = []
+        body_names = list(trajectories.keys())
+        
+        max_mass = max(max(traj['masses']) for traj in trajectories.values())
+        
+        current_x = []
+        current_y = []
+        current_z = []
+        body_colors = []
+        body_sizes = []
+        
+        for i, body_name in enumerate(body_names):
+            color = colors[i % len(colors)]
+            
+            mass = trajectories[body_name]['masses'][0]
+            relative_mass = mass / max_mass if max_mass > 0 else 0.5
+            size = 50 + relative_mass * 200
+            
+            current_x.append(trajectories[body_name]['x'][0])
+            current_y.append(trajectories[body_name]['y'][0])
+            current_z.append(trajectories[body_name]['z'][0])
+            body_colors.append(color)
+            body_sizes.append(size)
+            
+            trail, = ax.plot([], [], [], color=color, alpha=0.6, linewidth=1.5)
+            trails.append(trail)
+        
+        bodies_scatter = ax.scatter(current_x, current_y, current_z, 
+                                  s=body_sizes, c=body_colors, 
+                                  alpha=0.9, edgecolors='white', linewidth=1)
+        
+        ax.set_xlabel('X Position (m)', color='white', fontweight='bold', fontsize=12)
+        ax.set_ylabel('Y Position (m)', color='white', fontweight='bold', fontsize=12)
+        ax.set_zlabel('Z Position (m)', color='white', fontweight='bold', fontsize=12)
+        ax.set_title(f'3D Animated N-Body Simulation - {results["simulation_type"].title()}', 
+                    color='white', fontsize=14, fontweight='bold')
+        ax.tick_params(colors='white')
+        
+        info_text = f"Bodies: {n_bodies}\nMode: {results['simulation_type']}\n● 3D Visualization"
+        fig.text(0.02, 0.98, info_text, bbox=dict(boxstyle='round,pad=0.5', 
+                facecolor='black', alpha=0.8, edgecolor='white'),
+                color='white', fontsize=10, verticalalignment='top')
+        
+        def animate_3d(frame):
+
+            current_x = []
+            current_y = []
+            current_z = []
+            
+            for i, body_name in enumerate(body_names):
+                traj = trajectories[body_name]
+                
+                x = traj['x'][frame]
+                y = traj['y'][frame]
+                z = traj['z'][frame]
+                
+                current_x.append(x)
+                current_y.append(y)
+                current_z.append(z)
+                
+                trail_length = min(frame + 1, 30)
+                start_idx = max(0, frame - trail_length + 1)
+                trail_x = traj['x'][start_idx:frame+1]
+                trail_y = traj['y'][start_idx:frame+1]
+                trail_z = traj['z'][start_idx:frame+1]
+                trails[i].set_data_3d(trail_x, trail_y, trail_z)
+            
+            bodies_scatter._offsets3d = (current_x, current_y, current_z)
+            
+            return [bodies_scatter] + trails
+        
+        print("Creating 3D animation... This may take a moment.")
+        anim = animation.FuncAnimation(fig, animate_3d, frames=n_frames, 
+                                     interval=100, blit=False, repeat=True)
+        
+        if save_animation:
+            filename = f"{results['simulation_type']}_3d_animation.gif"
+            print(f"Saving 3D animation as {filename}...")
+            anim.save(filename, writer='pillow', fps=10, dpi=80)
+            print(f"3D Animation saved as {filename}")
+        
+        print("Showing 3D animation... Close the window to continue.")
+        print("Tip: You can manually rotate and zoom the 3D view!")
         plt.show()
         return anim
 
@@ -529,21 +669,16 @@ def calculate_force_chunk_efficient(start_idx, end_idx, positions, masses, G):
             if i != j:
                 j_pos = np.array([positions[j*3], positions[j*3+1], positions[j*3+2]])
                 
-                # Distance vector from body i to body j
                 r_vec = j_pos - i_pos
                 r_magnitude = np.linalg.norm(r_vec)
                 
-                # Avoid division by zero
-                if r_magnitude > 1e-10:  # Small threshold to avoid numerical issues
-                    # Calculate force magnitude: F = G * m1 * m2 / r^2
+                if r_magnitude > 1e-10:
                     force_magnitude = G * masses[i] * masses[j] / (r_magnitude ** 2)
                     
-                    # Force direction (unit vector)
                     force_direction = r_vec / r_magnitude
                     
                     total_force += force_magnitude * force_direction
         
-        # Store in flattened array
         local_idx = i - start_idx
         forces[local_idx*3:local_idx*3+3] = total_force
     
@@ -555,20 +690,17 @@ def create_many_body_system(n_bodies: int = 100) -> List[Body]:
     bodies = []
     
     for i in range(n_bodies):
-        # Random mass between 1e23 and 1e30 kg
         mass = np.random.uniform(1e23, 1e30)
         
-        # Random position within a large sphere
-        r = np.random.uniform(1e10, 1e12)  # Distance from origin
-        theta = np.random.uniform(0, 2 * np.pi)  # Angle in XY plane
-        phi = np.random.uniform(0, np.pi)  # Angle from Z axis
+        r = np.random.uniform(1e10, 1e12)
+        theta = np.random.uniform(0, 2 * np.pi)
+        phi = np.random.uniform(0, np.pi)
         
         x = r * np.sin(phi) * np.cos(theta)
         y = r * np.sin(phi) * np.sin(theta)
         z = r * np.cos(phi)
         position = np.array([x, y, z])
         
-        # Random velocity (smaller than orbital velocity to prevent escape)
         v_mag = np.random.uniform(1e3, 1e4)
         v_theta = np.random.uniform(0, 2 * np.pi)
         v_phi = np.random.uniform(0, np.pi)
@@ -589,15 +721,13 @@ def performance_comparison(bodies: List[Body], iterations: int = 100):
     simulator_seq = NBodySimulator([Body(b.mass, b.position.copy(), b.velocity.copy(), b.name) 
                                    for b in bodies])
     results_seq = simulator_seq.simulate(iterations, parallel=False)
-    simulator_seq.cleanup()  # Clean up
+    simulator_seq.cleanup()
     
-    # Parallel simulation
     simulator_par = NBodySimulator([Body(b.mass, b.position.copy(), b.velocity.copy(), b.name) 
                                    for b in bodies])
     results_par = simulator_par.simulate(iterations, parallel=True)
-    simulator_par.cleanup()  # Clean up
+    simulator_par.cleanup()
     
-    # Compare results
     seq_time = results_seq['execution_time']
     par_time = results_par['execution_time']
     speedup = seq_time / par_time if par_time > 0 else 1.0
@@ -634,7 +764,7 @@ def cleanup_generated_files():
 
 
 def main():
-    print("=" * 60 + "\nN-BODY PROBLEM - SIMPLE IMPLEMENTATION\n" + "=" * 60)
+    print("=" * 60 + "\nN-BODY PROBLEM\n" + "=" * 60)
     
     while True:
         print("\nOptions:\n"
@@ -658,26 +788,30 @@ def main():
                 simulator = NBodySimulator(bodies)
                 results = simulator.simulate(iterations, parallel=parallel)
 
-                # Save results
                 filename = f"{ 'parallel' if parallel else 'sequential' }_many_body_{n_bodies}.json"
                 with open(filename, 'w') as f:
                     json.dump(results, f, indent=2)
                 print(f"Results saved to {filename}")
 
-                # Visualize
                 print("\nVisualization options:\n"
                       "1. Static plots\n"
-                      "2. Animated visualization\n"
-                      "3. Both")
-                viz_choice = input("Choose visualization (1-3, default 1): ").strip() or "1"
+                      "2. 2D Animated visualization\n"
+                      "3. 3D Animated visualization\n"
+                      "4. Both static and 2D animation\n"
+                      "5. Both static and 3D animation\n"
+                      "6. All visualizations")
+                viz_choice = input("Choose visualization (1-6, default 1): ").strip() or "1"
 
-                if viz_choice in ["1", "3"]:
+                if viz_choice in ["1", "4", "5", "6"]:
                     simulator.visualize_results(results)
-                if viz_choice in ["2", "3"]:
-                    save_anim = input("Save animation as GIF? (y/n, default n): ").strip().lower() == 'y'
+                if viz_choice in ["2", "4", "6"]:
+                    save_anim = input("Save 2D animation as GIF? (y/n, default n): ").strip().lower() == 'y'
                     simulator.create_animated_visualization(results, save_animation=save_anim)
+                if viz_choice in ["3", "5", "6"]:
+                    save_anim_3d = input("Save 3D animation as GIF? (y/n, default n): ").strip().lower() == 'y'
+                    simulator.create_3d_animated_visualization(results, save_animation=save_anim_3d)
 
-                simulator.cleanup()  # Clean up
+                simulator.cleanup()
 
             elif choice == '2':
                 n_bodies = int(input("Enter number of bodies for comparison (default 100): ") or 100)
@@ -686,7 +820,6 @@ def main():
                 iterations = int(input("Enter number of iterations for comparison (default 50): ") or 50)
                 results_seq, results_par = performance_comparison(bodies, iterations)
 
-                # Save comparison results
                 comparison = {
                     'sequential': results_seq,
                     'parallel': results_par,
@@ -700,14 +833,12 @@ def main():
                 cleanup_generated_files()
 
             elif choice == '4':
-                print("Goodbye!")
                 break
 
             else:
                 print("Invalid choice. Please enter 1-4.")
 
         except KeyboardInterrupt:
-            print("\nGoodbye!")
             break
         except Exception as e:
             print(f"Error: {e}")

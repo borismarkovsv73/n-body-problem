@@ -22,3 +22,10 @@ env/
 # OS files
 .DS_Store
 Thumbs.db
+old/analyze_results.py
+old/enhanced_visualizer.py
+old/parallel_nbody.py
+old/performance_comparison.py
+old/requirements.txt
+old/run_project.py
+old/sequential_nbody.py
